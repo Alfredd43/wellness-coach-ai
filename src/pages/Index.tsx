@@ -6,9 +6,10 @@ import { Badge } from "@/components/ui/badge";
 import { Activity, Heart, Users, Search, TrendingUp, Calendar } from "lucide-react";
 import Dashboard from "@/components/Dashboard";
 import ChatAssistant from "@/components/ChatAssistant";
+import ExerciseLibrary from "@/components/ExerciseLibrary";
 
 const Index = () => {
-  const [currentView, setCurrentView] = useState<'landing' | 'dashboard' | 'chat'>('landing');
+  const [currentView, setCurrentView] = useState<'landing' | 'dashboard' | 'chat' | 'exercises'>('landing');
 
   const LandingPage = () => (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
@@ -39,6 +40,14 @@ const Index = () => {
                 variant="outline" 
                 size="lg" 
                 className="border-2 border-blue-600 text-blue-600 hover:bg-blue-50 px-8 py-6 text-lg"
+                onClick={() => setCurrentView('exercises')}
+              >
+                Browse Exercises
+              </Button>
+              <Button 
+                variant="outline" 
+                size="lg" 
+                className="border-2 border-green-600 text-green-600 hover:bg-green-50 px-8 py-6 text-lg"
                 onClick={() => setCurrentView('chat')}
               >
                 Try AI Coach
@@ -155,13 +164,23 @@ const Index = () => {
           <p className="text-xl text-blue-100 mb-8">
             Join thousands of users already achieving their fitness goals with AI-powered insights.
           </p>
-          <Button 
-            size="lg" 
-            className="bg-white text-blue-600 hover:bg-gray-100 px-12 py-6 text-lg font-semibold"
-            onClick={() => setCurrentView('dashboard')}
-          >
-            Get Started Now
-          </Button>
+          <div className="flex gap-4 justify-center flex-wrap">
+            <Button 
+              size="lg" 
+              className="bg-white text-blue-600 hover:bg-gray-100 px-12 py-6 text-lg font-semibold"
+              onClick={() => setCurrentView('dashboard')}
+            >
+              Get Started Now
+            </Button>
+            <Button 
+              size="lg" 
+              variant="outline"
+              className="border-2 border-white text-white hover:bg-white hover:text-blue-600 px-12 py-6 text-lg font-semibold"
+              onClick={() => setCurrentView('exercises')}
+            >
+              Explore Exercises
+            </Button>
+          </div>
         </div>
       </div>
     </div>
@@ -173,6 +192,10 @@ const Index = () => {
 
   if (currentView === 'chat') {
     return <ChatAssistant onNavigate={setCurrentView} />;
+  }
+
+  if (currentView === 'exercises') {
+    return <ExerciseLibrary onNavigate={setCurrentView} />;
   }
 
   return <LandingPage />;

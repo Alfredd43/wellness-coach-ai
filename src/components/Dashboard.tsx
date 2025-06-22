@@ -5,13 +5,13 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
-import { Activity, Heart, TrendingUp, Calendar, Plus, MessageSquare, Home, User as UserIcon } from "lucide-react";
+import { Activity, Heart, TrendingUp, Calendar, Plus, MessageSquare, Home, User as UserIcon, BookOpen } from "lucide-react";
 import ActivityLogger from "./ActivityLogger";
 import { useToast } from "@/hooks/use-toast";
 import { dataService, User } from "@/services/dataService";
 
 interface DashboardProps {
-  onNavigate: (view: 'landing' | 'dashboard' | 'chat') => void;
+  onNavigate: (view: 'landing' | 'dashboard' | 'chat' | 'exercises') => void;
 }
 
 const Dashboard = ({ onNavigate }: DashboardProps) => {
@@ -120,6 +120,10 @@ const Dashboard = ({ onNavigate }: DashboardProps) => {
               <Button variant="outline" onClick={() => onNavigate('landing')}>
                 <Home className="w-4 h-4 mr-2" />
                 Home
+              </Button>
+              <Button variant="outline" onClick={() => onNavigate('exercises')}>
+                <BookOpen className="w-4 h-4 mr-2" />
+                Exercises
               </Button>
               <Button variant="outline" onClick={() => onNavigate('chat')}>
                 <MessageSquare className="w-4 h-4 mr-2" />
