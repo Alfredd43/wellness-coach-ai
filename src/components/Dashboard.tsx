@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
-import { Activity, Heart, TrendingUp, Calendar, Plus, MessageSquare, Home, User } from "lucide-react";
+import { Activity, Heart, TrendingUp, Calendar, Plus, MessageSquare, Home, User as UserIcon } from "lucide-react";
 import ActivityLogger from "./ActivityLogger";
 import { useToast } from "@/hooks/use-toast";
 import { dataService, User } from "@/services/dataService";
@@ -126,7 +126,7 @@ const Dashboard = ({ onNavigate }: DashboardProps) => {
                 AI Coach
               </Button>
               <Button variant="outline">
-                <User className="w-4 h-4 mr-2" />
+                <UserIcon className="w-4 h-4 mr-2" />
                 Profile
               </Button>
             </div>
