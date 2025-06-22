@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -7,21 +7,37 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { Plus, Clock, Utensils, Activity as ActivityIcon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { dataService, MealEntry, WorkoutEntry } from "@/services/dataService";
 
 interface ActivityLoggerProps {
   type: 'nutrition' | 'workout';
+  onDataChange?: () => void;
 }
 
-const ActivityLogger = ({ type }: ActivityLoggerProps) => {
+const ActivityLogger = ({ type, onDataChange }: ActivityLoggerProps) => {
   const [selectedFood, setSelectedFood] = useState('');
   const [quantity, setQuantity] = useState('');
   const [workoutType, setWorkoutType] = useState('');
   const [duration, setDuration] = useState('');
   const [notes, setNotes] = useState('');
+  const [recentEntries, setRecentEntries] = useState<(MealEntry | WorkoutEntry)[]>([]);
   const { toast } = useToast();
+
+  useEffect(() => {
+    loadRecentEntries();
+  }, [type]);
+
+  const loadRecentEntries = () => {
+    if (type === 'nutrition') {
+      const meals = dataService.getMeals().slice(0, 5); // Last 5 meals
+      setRecentEntries(meals);
+    } else {
+      const workouts = dataService.getWorkouts().slice(0, 5); // Last 5 workouts
+      setRecentEntries(workouts);
+    }
+  };
 
   const foodDatabase = [
     { name: 'Chicken Breast (100g)', calories: 165, protein: 31, carbs: 0, fat: 3.6 },
@@ -54,19 +70,38 @@ const ActivityLogger = ({ type }: ActivityLoggerProps) => {
       const food = foodDatabase.find(f => f.name === selectedFood);
       if (food && quantity) {
         const multiplier = parseFloat(quantity);
-        const totalCalories = Math.round(food.calories * multiplier);
-        const totalProtein = Math.round(food.protein * multiplier);
+        const mealData = {
+          foodName: food.name,
+          quantity: multiplier,
+          calories: Math.round(food.calories * multiplier),
+          protein: Math.round(food.protein * multiplier * 10) / 10,
+          carbs: Math.round(food.carbs * multiplier * 10) / 10,
+          fat: Math.round(food.fat * multiplier * 10) / 10,
+          notes
+        };
+        
+        dataService.addMeal(mealData);
         
         toast({
           title: "Meal Logged Successfully!",
-          description: `${food.name} (${quantity}x) - ${totalCalories} calories, ${totalProtein}g protein`,
+          description: `${food.name} (${quantity}x) - ${mealData.calories} calories, ${mealData.protein}g protein`,
         });
       }
     } else {
-      toast({
-        title: "Workout Logged Successfully!",
-        description: `${workoutType} for ${duration} minutes`,
-      });
+      if (workoutType && duration) {
+        const workoutData = {
+          type: workoutType,
+          duration: parseInt(duration),
+          notes
+        };
+        
+        dataService.addWorkout(workoutData);
+        
+        toast({
+          title: "Workout Logged Successfully!",
+          description: `${workoutType} for ${duration} minutes`,
+        });
+      }
     }
 
     // Reset form
@@ -75,6 +110,10 @@ const ActivityLogger = ({ type }: ActivityLoggerProps) => {
     setWorkoutType('');
     setDuration('');
     setNotes('');
+    
+    // Refresh recent entries and notify parent
+    loadRecentEntries();
+    onDataChange?.();
   };
 
   const calculateMacros = () => {
@@ -83,12 +122,23 @@ const ActivityLogger = ({ type }: ActivityLoggerProps) => {
       const multiplier = parseFloat(quantity) || 0;
       return {
         calories: Math.round(food.calories * multiplier),
-        protein: Math.round(food.protein * multiplier),
-        carbs: Math.round(food.carbs * multiplier),
+        protein: Math.round(food.protein * multiplier * 10) / 10,
+        carbs: Math.round(food.carbs * multiplier * 10) / 10,
         fat: Math.round(food.fat * multiplier * 10) / 10,
       };
     }
     return null;
+  };
+
+  const formatTime = (timestamp: string) => {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
+    
+    if (diffInHours < 1) return 'Just now';
+    if (diffInHours < 24) return `${diffInHours} hour${diffInHours > 1 ? 's' : ''} ago`;
+    if (diffInHours < 48) return 'Yesterday';
+    return date.toLocaleDateString();
   };
 
   return (
@@ -243,7 +293,7 @@ const ActivityLogger = ({ type }: ActivityLoggerProps) => {
         </CardContent>
       </Card>
 
-      {/* Recent Entries */}
+      {/* Recent Entries - Now showing real data */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center">
@@ -253,52 +303,40 @@ const ActivityLogger = ({ type }: ActivityLoggerProps) => {
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {type === 'nutrition' ? (
-              <>
-                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div>
-                    <p className="font-medium">Chicken Breast & Rice</p>
-                    <p className="text-sm text-gray-600">2 hours ago</p>
-                  </div>
-                  <div className="text-right">
-                    <Badge>450 cal</Badge>
-                    <p className="text-sm text-gray-600">35g protein</p>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div>
-                    <p className="font-medium">Breakfast Oatmeal</p>
-                    <p className="text-sm text-gray-600">5 hours ago</p>
-                  </div>
-                  <div className="text-right">
-                    <Badge>320 cal</Badge>
-                    <p className="text-sm text-gray-600">12g protein</p>
-                  </div>
-                </div>
-              </>
+            {recentEntries.length === 0 ? (
+              <p className="text-gray-500 text-center py-4">
+                No {type === 'nutrition' ? 'meals' : 'workouts'} logged yet. Start by adding your first entry above!
+              </p>
             ) : (
-              <>
-                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              recentEntries.map((entry) => (
+                <div key={entry.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                   <div>
-                    <p className="font-medium">HIIT Workout</p>
-                    <p className="text-sm text-gray-600">1 hour ago</p>
+                    <p className="font-medium">
+                      {type === 'nutrition' 
+                        ? (entry as MealEntry).foodName 
+                        : (entry as WorkoutEntry).type
+                      }
+                    </p>
+                    <p className="text-sm text-gray-600">{formatTime(entry.timestamp)}</p>
+                    {entry.notes && (
+                      <p className="text-xs text-gray-500 mt-1">{entry.notes}</p>
+                    )}
                   </div>
                   <div className="text-right">
-                    <Badge>30 min</Badge>
-                    <p className="text-sm text-gray-600">High intensity</p>
+                    {type === 'nutrition' ? (
+                      <>
+                        <Badge>{(entry as MealEntry).calories} cal</Badge>
+                        <p className="text-sm text-gray-600">{(entry as MealEntry).protein}g protein</p>
+                      </>
+                    ) : (
+                      <>
+                        <Badge>{(entry as WorkoutEntry).duration} min</Badge>
+                        <p className="text-sm text-gray-600">Workout session</p>
+                      </>
+                    )}
                   </div>
                 </div>
-                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div>
-                    <p className="font-medium">Morning Run</p>
-                    <p className="text-sm text-gray-600">Yesterday</p>
-                  </div>
-                  <div className="text-right">
-                    <Badge>45 min</Badge>
-                    <p className="text-sm text-gray-600">5km distance</p>
-                  </div>
-                </div>
-              </>
+              ))
             )}
           </div>
         </CardContent>

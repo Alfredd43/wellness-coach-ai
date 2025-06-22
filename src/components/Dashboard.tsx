@@ -1,5 +1,4 @@
-
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -9,6 +8,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { Activity, Heart, TrendingUp, Calendar, Plus, MessageSquare, Home, User } from "lucide-react";
 import ActivityLogger from "./ActivityLogger";
 import { useToast } from "@/hooks/use-toast";
+import { dataService, User } from "@/services/dataService";
 
 interface DashboardProps {
   onNavigate: (view: 'landing' | 'dashboard' | 'chat') => void;
@@ -16,18 +16,57 @@ interface DashboardProps {
 
 const Dashboard = ({ onNavigate }: DashboardProps) => {
   const [activeTab, setActiveTab] = useState('overview');
+  const [user, setUser] = useState<User | null>(null);
+  const [todaysCalories, setTodaysCalories] = useState(0);
+  const [todaysProtein, setTodaysProtein] = useState(0);
+  const [weeklyWorkouts, setWeeklyWorkouts] = useState(0);
+  const [currentStreak, setCurrentStreak] = useState(0);
   const { toast } = useToast();
 
-  // Mock data for charts
-  const weeklyData = [
-    { day: 'Mon', calories: 1850, protein: 120, workouts: 1 },
-    { day: 'Tue', calories: 2100, protein: 140, workouts: 0 },
-    { day: 'Wed', calories: 1950, protein: 130, workouts: 1 },
-    { day: 'Thu', calories: 2200, protein: 150, workouts: 1 },
-    { day: 'Fri', calories: 1900, protein: 125, workouts: 0 },
-    { day: 'Sat', calories: 2300, protein: 160, workouts: 1 },
-    { day: 'Sun', calories: 2000, protein: 135, workouts: 1 },
-  ];
+  useEffect(() => {
+    loadDashboardData();
+  }, []);
+
+  const loadDashboardData = () => {
+    const userData = dataService.getUser();
+    setUser(userData);
+    setTodaysCalories(dataService.getTodaysCalories());
+    setTodaysProtein(dataService.getTodaysProtein());
+    setWeeklyWorkouts(dataService.getWeeklyWorkouts());
+    setCurrentStreak(dataService.getCurrentStreak());
+  };
+
+  // Generate weekly data from actual entries
+  const generateWeeklyData = () => {
+    const meals = dataService.getMeals();
+    const workouts = dataService.getWorkouts();
+    const weekData = [];
+    
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      const dateString = date.toDateString();
+      
+      const dayMeals = meals.filter(meal => 
+        new Date(meal.timestamp).toDateString() === dateString
+      );
+      const dayWorkouts = workouts.filter(workout => 
+        new Date(workout.timestamp).toDateString() === dateString
+      );
+      
+      const dayCalories = dayMeals.reduce((total, meal) => total + meal.calories, 0);
+      const dayProtein = dayMeals.reduce((total, meal) => total + meal.protein, 0);
+      
+      weekData.push({
+        day: date.toLocaleDateString('en', { weekday: 'short' }),
+        calories: dayCalories,
+        protein: Math.round(dayProtein),
+        workouts: dayWorkouts.length
+      });
+    }
+    
+    return weekData;
+  };
 
   const macroData = [
     { name: 'Protein', value: 25, color: '#3B82F6' },
@@ -36,11 +75,34 @@ const Dashboard = ({ onNavigate }: DashboardProps) => {
   ];
 
   const handleQuickLog = (type: string) => {
-    toast({
-      title: "Quick Log",
-      description: `${type} logged successfully!`,
-    });
+    if (type === 'Water') {
+      dataService.addWater(250); // Add 250ml
+      toast({
+        title: "Water Logged",
+        description: "250ml added to your daily intake!",
+      });
+    } else if (type === 'Weight') {
+      // For demo, we'll add a placeholder weight
+      const lastWeight = dataService.getWeightEntries()[0]?.weight || 70;
+      dataService.addWeight(lastWeight);
+      toast({
+        title: "Weight Logged",
+        description: `Weight entry added: ${lastWeight}kg`,
+      });
+    } else {
+      toast({
+        title: "Quick Log",
+        description: `${type} logged successfully!`,
+      });
+    }
+    loadDashboardData(); // Refresh data
   };
+
+  if (!user) return <div>Loading...</div>;
+
+  const weeklyData = generateWeeklyData();
+  const calorieProgress = (todaysCalories / user.goals.dailyCalories) * 100;
+  const proteinProgress = (todaysProtein / user.goals.dailyProtein) * 100;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
@@ -75,23 +137,23 @@ const Dashboard = ({ onNavigate }: DashboardProps) => {
       <div className="max-w-7xl mx-auto px-6 py-8">
         {/* Welcome Section */}
         <div className="mb-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-2">Welcome back, Alex! 👋</h2>
+          <h2 className="text-3xl font-bold text-gray-900 mb-2">Welcome back, {user.name}! 👋</h2>
           <p className="text-gray-600">Here's your fitness progress for today</p>
         </div>
 
-        {/* Quick Stats */}
+        {/* Quick Stats - Now using real data */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <Card className="bg-gradient-to-r from-blue-500 to-blue-600 text-white border-0">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-blue-100">Today's Calories</p>
-                  <p className="text-3xl font-bold">1,847</p>
-                  <p className="text-sm text-blue-100">Goal: 2,000</p>
+                  <p className="text-3xl font-bold">{todaysCalories.toLocaleString()}</p>
+                  <p className="text-sm text-blue-100">Goal: {user.goals.dailyCalories.toLocaleString()}</p>
                 </div>
                 <Activity className="w-8 h-8 text-blue-200" />
               </div>
-              <Progress value={92} className="mt-3" />
+              <Progress value={Math.min(calorieProgress, 100)} className="mt-3" />
             </CardContent>
           </Card>
 
@@ -100,12 +162,12 @@ const Dashboard = ({ onNavigate }: DashboardProps) => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-green-100">Protein Intake</p>
-                  <p className="text-3xl font-bold">128g</p>
-                  <p className="text-sm text-green-100">Goal: 150g</p>
+                  <p className="text-3xl font-bold">{Math.round(todaysProtein)}g</p>
+                  <p className="text-sm text-green-100">Goal: {user.goals.dailyProtein}g</p>
                 </div>
                 <Heart className="w-8 h-8 text-green-200" />
               </div>
-              <Progress value={85} className="mt-3" />
+              <Progress value={Math.min(proteinProgress, 100)} className="mt-3" />
             </CardContent>
           </Card>
 
@@ -114,14 +176,14 @@ const Dashboard = ({ onNavigate }: DashboardProps) => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-purple-100">Workouts</p>
-                  <p className="text-3xl font-bold">5</p>
+                  <p className="text-3xl font-bold">{weeklyWorkouts}</p>
                   <p className="text-sm text-purple-100">This week</p>
                 </div>
                 <TrendingUp className="w-8 h-8 text-purple-200" />
               </div>
               <div className="flex space-x-1 mt-3">
                 {[1,2,3,4,5,6,7].map((day) => (
-                  <div key={day} className={`w-4 h-4 rounded-full ${day <= 5 ? 'bg-white' : 'bg-purple-300'}`} />
+                  <div key={day} className={`w-4 h-4 rounded-full ${day <= weeklyWorkouts ? 'bg-white' : 'bg-purple-300'}`} />
                 ))}
               </div>
             </CardContent>
@@ -132,12 +194,14 @@ const Dashboard = ({ onNavigate }: DashboardProps) => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-orange-100">Streak</p>
-                  <p className="text-3xl font-bold">12</p>
+                  <p className="text-3xl font-bold">{currentStreak}</p>
                   <p className="text-sm text-orange-100">Days</p>
                 </div>
                 <Calendar className="w-8 h-8 text-orange-200" />
               </div>
-              <Badge className="bg-white text-orange-600 mt-3">🔥 On fire!</Badge>
+              <Badge className="bg-white text-orange-600 mt-3">
+                {currentStreak > 0 ? '🔥 On fire!' : '💪 Start today!'}
+              </Badge>
             </CardContent>
           </Card>
         </div>
@@ -170,7 +234,7 @@ const Dashboard = ({ onNavigate }: DashboardProps) => {
           </CardContent>
         </Card>
 
-        {/* Main Content Tabs */}
+        {/* Main Content Tabs - Updated to use real data */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid w-full grid-cols-4 mb-8">
             <TabsTrigger value="overview">Overview</TabsTrigger>
@@ -199,6 +263,7 @@ const Dashboard = ({ onNavigate }: DashboardProps) => {
                 </CardContent>
               </Card>
 
+              {/* Macro Distribution chart */}
               <Card>
                 <CardHeader>
                   <CardTitle>Macro Distribution</CardTitle>
@@ -237,11 +302,11 @@ const Dashboard = ({ onNavigate }: DashboardProps) => {
           </TabsContent>
 
           <TabsContent value="nutrition">
-            <ActivityLogger type="nutrition" />
+            <ActivityLogger type="nutrition" onDataChange={loadDashboardData} />
           </TabsContent>
 
           <TabsContent value="workouts">
-            <ActivityLogger type="workout" />
+            <ActivityLogger type="workout" onDataChange={loadDashboardData} />
           </TabsContent>
 
           <TabsContent value="progress">
